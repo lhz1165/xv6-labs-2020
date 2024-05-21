@@ -17,13 +17,13 @@ int main(int argc, char const *argv[])
         printf("%d: %s\n",getpid(),ping);
 
         close(cp[0]);
-        char pong[20]="pong reveived";
+        char pong[20]="received pong";
         write(cp[1],pong,20);
         int status;
         wait(&status);
     }else{
       close(fp[0]);
-      char ping[20]="ping reveived";
+      char ping[20]="received ping";
       write(fp[1],ping,20);
 
 
@@ -34,7 +34,7 @@ int main(int argc, char const *argv[])
 
     }
     
-
+    exit(0);
     
-    return 0;
+    //return 0;
 }
