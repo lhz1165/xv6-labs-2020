@@ -53,7 +53,9 @@ ls(char *path)
     }
     strcpy(buf, path);
     p = buf+strlen(buf);
+    //路径拼接一个/
     *p++ = '/';
+    printf("path is  %s\n",buf);
     while(read(fd, &de, sizeof(de)) == sizeof(de)){
       if(de.inum == 0)
         continue;
