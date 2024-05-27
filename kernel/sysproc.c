@@ -118,8 +118,10 @@ sys_uptime(void)
 //     "mkdir",
 //     "close"
 // };
-uint64
-sys_trace(void){
-  printf("sys trace\n");
+uint64 sys_trace(void){
+  int n;
+  if(argint(0, &n) < 0)
+    return -1;
+  printf("sys trace arg =%d\n",n);
   return 0;
 }
