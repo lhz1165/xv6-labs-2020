@@ -37,7 +37,6 @@ void fmt_args(char *read_in, int len, char **args, int *args_cnt)
             //args[3]="too\0"
             args[*args_cnt][cur_buf_len] = 0;
             cur_buf_len = 0;
-            printf("new arges is %s\n", args[*args_cnt]);
             (*args_cnt)++;
         }
         else
