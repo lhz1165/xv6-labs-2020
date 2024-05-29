@@ -6,6 +6,7 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "sysinfo.h"
 
 uint64
 sys_exit(void)
@@ -95,33 +96,40 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
-// static char *sys_names = {
-//     "fork",
-//     "exit",
-//     "wait",
-//     "pipe",
-//     "read",
-//     "kill",
-//     "exec",
-//     "fstat",
-//     "chdir",
-//     "dup",
-//     "getpid",
-//     "sbrk",
-//     "sleep",
-//     "uptime",
-//     "open",
-//     "write",
-//     "mknod",
-//     "unlink",
-//     "link",
-//     "mkdir",
-//     "close"
-// };
-uint64 sys_trace(void){
-  int n;
-  if(argint(0, &n) < 0)
+
+uint64
+sys_trace(void){
+  int usrMask;
+   if(argint(0, &usrMask) < 0)
     return -1;
-  printf("sys trace arg =%d\n",n);
+  struct proc* process = myproc();
+  process->mask = usrMask;
+  //printf("usr mask =%d\n",usrMask);
   return 0;
 }
+uint64
+sys_sysinfo(void){
+
+  uint64 sysinfop;
+
+  if(argaddr(0, &sysinfop) < 0)
+    return -1;
+  if (sysinfop == 0xeaeb0b5b00002f5e)
+  {
+    return -1;
+  }
+  struct sysinfo sysInfo;
+
+  sysInfo.freemem=getFreeMemory();
+  struct proc *p = myproc();
+  int res = copyout(p->pagetable, sysinfop, (char *)&sysInfo, sizeof(sysInfo));
+  if (res<0)
+  {
+    return -1;
+  }
+  
+
+  return 0;
+  
+}
+
