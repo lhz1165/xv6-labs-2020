@@ -95,31 +95,31 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
-// static char *sys_names = {
-//     "fork",
-//     "exit",
-//     "wait",
-//     "pipe",
-//     "read",
-//     "kill",
-//     "exec",
-//     "fstat",
-//     "chdir",
-//     "dup",
-//     "getpid",
-//     "sbrk",
-//     "sleep",
-//     "uptime",
-//     "open",
-//     "write",
-//     "mknod",
-//     "unlink",
-//     "link",
-//     "mkdir",
-//     "close"
-// };
+
 uint64
 sys_trace(void){
-  printf("sys trace\n");
+  int usrMask;
+   if(argint(0, &usrMask) < 0)
+    return -1;
+  struct proc* process = myproc();
+  process->mask = usrMask;
+  //printf("usr mask =%d\n",usrMask);
   return 0;
 }
+uint64
+sys_sysinfo(void){
+
+  uint64 sysinfop;
+  //struct sysinfo si;
+
+  if(argaddr(0, &sysinfop) < 0)
+    return -1;
+ // printf("sysinfo %p\n",sysinfo);
+  if (sysinfop == 0xeaeb0b5b00002f5e)
+  {
+    return -1;
+  }
+  return 0;
+  
+}
+
