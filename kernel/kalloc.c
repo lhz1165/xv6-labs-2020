@@ -23,7 +23,7 @@ struct {
   struct spinlock lock;
   struct run *freelist;
 } kmem;
-
+//分配物理页
 void
 kinit()
 {
