@@ -100,7 +100,7 @@ sys_uptime(void)
 uint64
 sys_trace(void){
   int usrMask;
-   if(argint(0, &usrMask) < 0)
+  if(argint(0, &usrMask) < 0)  
     return -1;
   struct proc* process = myproc();
   process->mask = usrMask;
@@ -121,6 +121,7 @@ sys_sysinfo(void){
   struct sysinfo sysInfo;
 
   sysInfo.freemem=getFreeMemory();
+  sysInfo.nproc = getUnusedProcNum();
   struct proc *p = myproc();
   int res = copyout(p->pagetable, sysinfop, (char *)&sysInfo, sizeof(sysInfo));
   if (res<0)
