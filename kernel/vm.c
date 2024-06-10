@@ -5,6 +5,9 @@
 #include "riscv.h"
 #include "defs.h"
 #include "fs.h"
+#include "spinlock.h"
+#include "proc.h"
+
 
 /*
  * the kernel's page table.
@@ -439,4 +442,87 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
   } else {
     return -1;
   }
+}
+void printPte(pte_t *pte,int index,int level){
+  if(level > 3){
+    return;
+  }
+  int i;
+  for ( i = 0; i < level; i++)
+  {
+    printf("..");
+    if(i == level-1){
+      printf("%d: ",index);
+    }else{
+      printf(" ");
+    }
+  }
+  pagetable_t nextPageTable = (pagetable_t)PTE2PA(*pte);
+
+  printf("pte %p pa %p\n",*pte, nextPageTable);
+  
+  for( i = 0; i < 512; i++){
+    pte_t *subpte = &nextPageTable[i];
+    if((*subpte & PTE_V)){
+        printPte(subpte,i,level+1);
+    } 
+  }
+}
+
+void vmprint(pagetable_t pt){
+   printf("page table %p\n",pt);
+   for(int i = 0; i < 512; i++){
+    pte_t pte = pt[i];
+    if((pte & PTE_V) ){
+      printPte(&pte,i,1);
+    }   
+  }
+  
+}
+
+void
+proc_kvmmap(pagetable_t pt, uint64 va, uint64 pa, uint64 sz, int perm)
+{
+  if(mappages(pt, va, sz, pa, perm) != 0)
+    panic("kvmmap");
+}
+
+pagetable_t proc_kvminit()
+{
+  
+  pagetable_t proc_kernel_pagetable = (pagetable_t) kalloc();
+ 
+
+  memset(proc_kernel_pagetable, 0, PGSIZE);
+
+  // uart registers
+  proc_kvmmap(proc_kernel_pagetable,UART0, UART0, PGSIZE, PTE_R | PTE_W);
+
+  // virtio mmio disk interface
+  proc_kvmmap(proc_kernel_pagetable,VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W);
+
+  // CLINT
+  proc_kvmmap(proc_kernel_pagetable,CLINT, CLINT, 0x10000, PTE_R | PTE_W);
+
+  // PLIC
+  proc_kvmmap(proc_kernel_pagetable,PLIC, PLIC, 0x400000, PTE_R | PTE_W);
+
+  // map kernel text executable and read-only.
+  proc_kvmmap(proc_kernel_pagetable,KERNBASE, KERNBASE, (uint64)etext-KERNBASE, PTE_R | PTE_X);
+
+  // map kernel data and the physical RAM we'll make use of.
+  proc_kvmmap(proc_kernel_pagetable,(uint64)etext, (uint64)etext, PHYSTOP-(uint64)etext, PTE_R | PTE_W);
+
+  // map the trampoline for trap entry/exit to
+  // the highest virtual address in the kernel.
+  proc_kvmmap(proc_kernel_pagetable,TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
+ 
+  return proc_kernel_pagetable;
+}
+
+void
+proc_kvminithart(struct proc *p)
+{
+  w_satp(MAKE_SATP(p->kpagetable));
+  sfence_vma();
 }
