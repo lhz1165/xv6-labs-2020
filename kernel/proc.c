@@ -6,6 +6,7 @@
 #include "proc.h"
 #include "defs.h"
 
+
 struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
@@ -128,7 +129,7 @@ found:
   //内核栈直接放在TRAMPOLINE下面是TRAPFRAME，TRAPFRAME=(TRAMPOLINE - PGSIZE)
   //再下面是Kstack=(TRAMPOLINE - (2*PGSIZE)）
   uint64 va = KSTACK((int) (0));
-  kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+  proc_kvmmap(p->kpagetable,va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
   p->kstack = va;
 
   // An empty user page table.
@@ -160,7 +161,12 @@ freeproc(struct proc *p)
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   if(p->kpagetable){
-    proc_free_kpagetable(p->kpagetable, p->sz);
+    // 删除内核栈
+    if (p->kstack) {
+      proc_free_kstack(p);
+    
+    }
+    proc_free_kpagetable(p->kpagetable);
   }
   p->pagetable = 0;
   p->kpagetable=0;
@@ -217,12 +223,25 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
   uvmfree(pagetable, sz);
 }
 //释放内核页表
-proc_free_kpagetable(pagetable_t kpagetable, uint64 sz)
+void proc_free_kpagetable(pagetable_t kpagetable)
 {
-  
-  // uvmunmap(kpagetable, TRAMPOLINE, 1, 0);
-  // uvmunmap(kpagetable, TRAPFRAME, 1, 0);
-  // uvmfree(kpagetable, sz);
+
+  for (int i = 0; i < 512; ++i) {
+    pte_t pte = kpagetable[i];
+    if ((pte & PTE_V)) {
+      kpagetable[i] = 0;
+      if ((pte & (PTE_R | PTE_W | PTE_X)) == 0) {
+        uint64 child = PTE2PA(pte);
+        proc_free_kpagetable((pagetable_t)child);
+      }
+    } else if (pte & PTE_V) {
+      panic("proc free kernelpagetable : leaf");
+    }
+  }
+  kfree((void*)kpagetable);
+  //释放内核栈
+  // uvmunmap(kpagetable, TRAMPOLINE - 2*PGSIZE, 1, 0);
+  // uvmfree(kpagetable, PGSIZE);
 }
 
 // a user program that calls exec("/init")
@@ -503,15 +522,18 @@ scheduler(void)
         c->proc = p;
         
         //设置内核页表到寄存器
-        proc_kvminithart(p);    
+        w_satp(MAKE_SATP(p->kpagetable));
+        // 清除快表缓存
+        sfence_vma();    
         swtch(&c->context, &p->context);
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
+        kvminithart();
         c->proc = 0;
 
         found = 1;
-        kvminithart();
+       
       }
       release(&p->lock);
     }

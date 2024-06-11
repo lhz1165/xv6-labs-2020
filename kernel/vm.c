@@ -134,8 +134,8 @@ kvmpa(uint64 va)
   uint64 off = va % PGSIZE;
   pte_t *pte;
   uint64 pa;
-  
-  pte = walk(kernel_pagetable, va, 0);
+  struct proc *p = myproc();
+  pte = walk(p->kpagetable, va, 0);
   if(pte == 0)
     panic("kvmpa");
   if((*pte & PTE_V) == 0)
@@ -491,7 +491,8 @@ pagetable_t proc_kvminit()
 {
   
   pagetable_t proc_kernel_pagetable = (pagetable_t) kalloc();
- 
+   if (proc_kernel_pagetable == 0)
+    return 0;
 
   memset(proc_kernel_pagetable, 0, PGSIZE);
 
@@ -525,4 +526,12 @@ proc_kvminithart(struct proc *p)
 {
   w_satp(MAKE_SATP(p->kpagetable));
   sfence_vma();
+}
+
+void proc_free_kstack(struct proc *p){
+   pte_t* pte = walk(p->kpagetable, p->kstack, 0);
+    if (pte == 0)
+      panic("freeproc : kstack");
+    // 删除页表项对应的物理地址
+    kfree((void*)PTE2PA(*pte));
 }
