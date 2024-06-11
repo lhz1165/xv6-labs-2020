@@ -226,22 +226,22 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
 void proc_free_kpagetable(pagetable_t kpagetable)
 {
 
-  for (int i = 0; i < 512; ++i) {
-    pte_t pte = kpagetable[i];
-    if ((pte & PTE_V)) {
-      kpagetable[i] = 0;
-      if ((pte & (PTE_R | PTE_W | PTE_X)) == 0) {
-        uint64 child = PTE2PA(pte);
-        proc_free_kpagetable((pagetable_t)child);
-      }
-    } else if (pte & PTE_V) {
-      panic("proc free kernelpagetable : leaf");
-    }
-  }
-  kfree((void*)kpagetable);
+  // for (int i = 0; i < 512; ++i) {
+  //   pte_t pte = kpagetable[i];
+  //   if ((pte & PTE_V)) {
+  //     kpagetable[i] = 0;
+  //     if ((pte & (PTE_R | PTE_W | PTE_X)) == 0) {
+  //       uint64 child = PTE2PA(pte);
+  //       proc_free_kpagetable((pagetable_t)child);
+  //     }
+  //   } else if (pte & PTE_V) {
+  //     panic("proc free kernelpagetable : leaf");
+  //   }
+  // }
+  // kfree((void*)kpagetable);
   //释放内核栈
-  // uvmunmap(kpagetable, TRAMPOLINE - 2*PGSIZE, 1, 0);
-  // uvmfree(kpagetable, PGSIZE);
+  uvmunmap(kpagetable, TRAMPOLINE - 2*PGSIZE, 1, 0);
+  uvmfree(kpagetable, PGSIZE);
 }
 
 // a user program that calls exec("/init")
