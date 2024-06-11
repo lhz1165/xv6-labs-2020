@@ -159,7 +159,11 @@ freeproc(struct proc *p)
   p->trapframe = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
+  if(p->kpagetable){
+    proc_free_kpagetable(p->kpagetable, p->sz);
+  }
   p->pagetable = 0;
+  p->kpagetable=0;
   p->sz = 0;
   p->pid = 0;
   p->parent = 0;
@@ -168,7 +172,6 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
-
 }
 
 // Create a user page table for a given process,
@@ -212,6 +215,14 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
   uvmfree(pagetable, sz);
+}
+//释放内核页表
+proc_free_kpagetable(pagetable_t kpagetable, uint64 sz)
+{
+  
+  // uvmunmap(kpagetable, TRAMPOLINE, 1, 0);
+  // uvmunmap(kpagetable, TRAPFRAME, 1, 0);
+  // uvmfree(kpagetable, sz);
 }
 
 // a user program that calls exec("/init")
