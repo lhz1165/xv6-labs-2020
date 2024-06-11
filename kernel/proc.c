@@ -239,9 +239,8 @@ void proc_free_kpagetable(pagetable_t kpagetable)
   //   }
   // }
   // kfree((void*)kpagetable);
-  //释放内核栈
-  uvmunmap(kpagetable, TRAMPOLINE - 2*PGSIZE, 1, 0);
-  uvmfree(kpagetable, PGSIZE);
+  //释放内核页表
+  uvmunmap(kpagetable, TRAMPOLINE - 2*PGSIZE, 1, 1);
 }
 
 // a user program that calls exec("/init")
