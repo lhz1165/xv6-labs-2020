@@ -115,7 +115,7 @@ found:
     return 0;
   }
 
-    //初始化内核栈
+  //1. 初始化内核页表
   p->kpagetable=proc_kvminit();
   if(p->kpagetable == 0){
     freeproc(p);
@@ -126,6 +126,7 @@ found:
   if(pa == 0){
     panic("kalloc");
   }
+  //2.初始化内核栈页
   //内核栈直接放在TRAMPOLINE下面是TRAPFRAME，TRAPFRAME=(TRAMPOLINE - PGSIZE)
   //再下面是Kstack=(TRAMPOLINE - (2*PGSIZE)）
   uint64 va = KSTACK((int) (0));
@@ -226,21 +227,20 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
 void proc_free_kpagetable(pagetable_t kpagetable)
 {
 
-  // for (int i = 0; i < 512; ++i) {
-  //   pte_t pte = kpagetable[i];
-  //   if ((pte & PTE_V)) {
-  //     kpagetable[i] = 0;
-  //     if ((pte & (PTE_R | PTE_W | PTE_X)) == 0) {
-  //       uint64 child = PTE2PA(pte);
-  //       proc_free_kpagetable((pagetable_t)child);
-  //     }
-  //   } else if (pte & PTE_V) {
-  //     panic("proc free kernelpagetable : leaf");
-  //   }
-  // }
-  // kfree((void*)kpagetable);
-  //释放内核页表
-  uvmunmap(kpagetable, TRAMPOLINE - 2*PGSIZE, 1, 1);
+  //释放内核页表的所有pte
+  for (int i = 0; i < 512; ++i) {
+    pte_t pte = kpagetable[i];
+    if ((pte & PTE_V)) {
+      kpagetable[i] = 0;
+      if ((pte & (PTE_R | PTE_W | PTE_X)) == 0) {
+        uint64 child = PTE2PA(pte);
+        proc_free_kpagetable((pagetable_t)child);
+      }
+    } else if (pte & PTE_V) {
+      panic("proc free kernelpagetable : leaf");
+    }
+  }
+  kfree((void*)kpagetable);
 }
 
 // a user program that calls exec("/init")
@@ -523,7 +523,8 @@ scheduler(void)
         //设置内核页表到寄存器
         w_satp(MAKE_SATP(p->kpagetable));
         // 清除快表缓存
-        sfence_vma();    
+        sfence_vma();
+
         swtch(&c->context, &p->context);
 
         // Process is done running for now.
