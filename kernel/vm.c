@@ -23,30 +23,31 @@ extern char trampoline[]; // trampoline.S
 void
 kvminit()
 {
-  kernel_pagetable = (pagetable_t) kalloc();
-  memset(kernel_pagetable, 0, PGSIZE);
+  //kernel_pagetable = (pagetable_t) kalloc();
+  // memset(kernel_pagetable, 0, PGSIZE);
 
-  // uart registers
-  kvmmap(UART0, UART0, PGSIZE, PTE_R | PTE_W);
+  // // uart registers
+  // kvmmap(UART0, UART0, PGSIZE, PTE_R | PTE_W);
 
-  // virtio mmio disk interface
-  kvmmap(VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W);
+  // // virtio mmio disk interface
+  // kvmmap(VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W);
 
-  // CLINT
-  kvmmap(CLINT, CLINT, 0x10000, PTE_R | PTE_W);
+  // // CLINT
+  // kvmmap(CLINT, CLINT, 0x10000, PTE_R | PTE_W);
 
-  // PLIC
-  kvmmap(PLIC, PLIC, 0x400000, PTE_R | PTE_W);
+  // // PLIC 寄存器暂时不映射
+  // kvmmap(PLIC, PLIC, 0x400000, PTE_R | PTE_W);
 
-  // map kernel text executable and read-only.
-  kvmmap(KERNBASE, KERNBASE, (uint64)etext-KERNBASE, PTE_R | PTE_X);
+  // // map kernel text executable and read-only.
+  // kvmmap(KERNBASE, KERNBASE, (uint64)etext-KERNBASE, PTE_R | PTE_X);
 
-  // map kernel data and the physical RAM we'll make use of.
-  kvmmap((uint64)etext, (uint64)etext, PHYSTOP-(uint64)etext, PTE_R | PTE_W);
+  // // map kernel data and the physical RAM we'll make use of.
+  // kvmmap((uint64)etext, (uint64)etext, PHYSTOP-(uint64)etext, PTE_R | PTE_W);
 
-  // map the trampoline for trap entry/exit to
-  // the highest virtual address in the kernel.
-  kvmmap(TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
+  // // map the trampoline for trap entry/exit to
+  // // the highest virtual address in the kernel.
+  // kvmmap(TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
+  kernel_pagetable=proc_kvminit();
 }
 
 // Switch h/w page table register to the kernel's page table,
@@ -336,6 +337,31 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   uvmunmap(new, 0, i / PGSIZE, 1);
   return -1;
 }
+//赋值pagetable 页表到 kpagetable
+int vmukmap(pagetable_t pagetable, pagetable_t kpagetable, uint64 begin, uint64 end)
+{
+  pte_t *pte;
+  uint64 pa, i;
+  uint flags;
+
+  uint64 begin_page = PGROUNDUP(begin);
+  for(i = begin_page; i < end; i += PGSIZE){
+    if((pte = walk(pagetable, i, 0)) == 0)
+      panic("vmukmap: pte should exist");
+    if((*pte & PTE_V) == 0)
+      panic("vmukmap: page not present");
+    pa = PTE2PA(*pte);
+    //PTE 有一位 PTE_U 标志了是否为 user page, 获取 PTE 后, 会检查这一位, 如果是内核态且 PTE_U, 则无法访问. 也就是在映射内核页表的时候需要注意, 不要这一位.
+    flags = PTE_FLAGS(*pte) & ~PTE_U;
+    if(mappages(kpagetable, i, PGSIZE, pa, flags) != 0)
+      goto err;
+  }
+  return 0;
+
+ err:
+  uvmunmap(kpagetable, begin_page, (i - begin_page) / PGSIZE, 1);
+  return -1;
+}
 
 // mark a PTE invalid for user access.
 // used by exec for the user stack guard page.
@@ -397,6 +423,7 @@ copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
   //   dst += n;
   //   srcva = va0 + PGSIZE;
   // } 
+  // return 0;
   //修改之前内核并没有用户态页表，因此需要找到用户态虚拟地址srcva的物理地址，只能通过软件模拟翻译(walkaddr)
   //修改之后，内核有了用户态虚拟地址页表，就不用软件手动翻译srcva，mmu会自动翻译的，因此不用转化
   //memmove操作指针，会把srcva自动通过mmu翻译为物理地址，因此不需要用软件模拟翻译了
@@ -444,7 +471,7 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
   // } else {
   //   return -1;
   // }
-  return 0;
+  // return 0;
   return copyinstr_new(pagetable,dst,srcva,max);
 }
 void printPte(pte_t *pte,int index,int level){
@@ -472,16 +499,38 @@ void printPte(pte_t *pte,int index,int level){
     } 
   }
 }
+void pgtblprint(pagetable_t pagetable, int depth) {
+  // there are 2^9 = 512 PTEs in a page table.
+  for(int i = 0; i < 512; i++){
+    pte_t pte = pagetable[i];
+    if(pte & PTE_V) { // 如果页表项有效
+      // 按格式打印页表项
+      printf("..");
+      for(int j=0;j<depth;j++) {
+        printf(" ..");
+      }
+      printf("%d: pte %p pa %p\n", i, pte, PTE2PA(pte));
+
+      // 如果该节点不是叶节点，递归打印其子节点。
+      if((pte & (PTE_R|PTE_W|PTE_X)) == 0){
+        // this PTE points to a lower-level page table.
+        uint64 child = PTE2PA(pte);
+        pgtblprint((pagetable_t)child,depth+1);
+      }
+    }
+  }
+}
 
 void vmprint(pagetable_t pt){
-   printf("page table %p\n",pt);
-   for(int i = 0; i < 512; i++){
-    pte_t pte = pt[i];
-    if((pte & PTE_V) ){
-      printPte(&pte,i,1);
-    }   
-  }
-  
+  //  printf("page table %p\n",pt);
+  //  for(int i = 0; i < 512; i++){
+  //   pte_t pte = pt[i];
+  //   if((pte & PTE_V) ){
+  //     printPte(&pte,i,1);
+  //   }   
+  // }
+  printf("page table %p\n", pt);
+  pgtblprint(pt, 0);
 }
 
 void

@@ -269,6 +269,9 @@ userinit(void)
   uvminit(p->pagetable, initcode, sizeof(initcode));
   p->sz = PGSIZE;
 
+  //把用户页表复制到内核页表（用户页表4096kb，uvmcreate()）
+  vmukmap(p->pagetable,p->kpagetable,0,p->sz);
+
   // prepare for the very first "return" from kernel to user.
   p->trapframe->epc = 0;      // user program counter
   p->trapframe->sp = PGSIZE;  // user stack pointer
@@ -291,11 +294,22 @@ growproc(int n)
 
   sz = p->sz;
   if(n > 0){
+
+    if (sz + n > CLINT)
+      return -1;
     if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
       return -1;
     }
+
+    
+    if((sz = vmukmap(p->pagetable,p->kpagetable, p->sz, (p->sz) + n)) == 0) {
+      return -1;
+    }
+
   } else if(n < 0){
     sz = uvmdealloc(p->pagetable, sz, sz + n);
+
+    uvmunmap(p->kpagetable, PGROUNDUP(sz), (PGROUNDUP(p->sz) - PGROUNDUP(sz)) / PGSIZE, 0);
   }
   p->sz = sz;
   return 0;
@@ -319,6 +333,13 @@ fork(void)
     freeproc(np);
     release(&np->lock);
     return -1;
+  }else{
+    //复制子进程页表到内核页表
+    if (vmukmap(np->pagetable,np->kpagetable,0,p->sz)<0){
+       freeproc(np);
+       release(&np->lock);
+       return -1; 
+    }
   }
   np->sz = p->sz;
 
