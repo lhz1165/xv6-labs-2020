@@ -164,7 +164,7 @@ int             uartgetc(void);
 // vm.c
 void            kvminit(void);
 void            kvminithart(void);
-uint64          kvmpa(uint64);
+uint64          kvmpa(pagetable_t pgtbl,uint64 va);
 void            kvmmap(uint64, uint64, uint64, int);
 int             mappages(pagetable_t, uint64, uint64, uint64, int);
 pagetable_t     uvmcreate(void);
@@ -186,6 +186,8 @@ void            vmprint(pagetable_t);
 void            proc_kvminithart(struct proc *p);
 pagetable_t     proc_kvminit();
 int vmukmap(pagetable_t pagetable, pagetable_t kpagetable, uint64 begin, uint64 end);
+uint64 vmkdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz);
+
 
 int copyin_new(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len);
 int copyinstr_new(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max);

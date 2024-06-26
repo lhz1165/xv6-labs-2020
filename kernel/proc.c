@@ -31,17 +31,6 @@ procinit(void)
   initlock(&pid_lock, "nextpid");
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
-
-      // Allocate a page for the process's kernel stack.
-      // Map it high in memory, followed by an invalid
-      // guard page.
-
-      // char *pa = kalloc();
-      // if(pa == 0)
-      //   panic("kalloc");
-      // uint64 va = KSTACK((int) (p - proc));
-      // kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
-      // p->kstack = va;
   }
   kvminithart();
 }
@@ -117,11 +106,11 @@ found:
 
   //1. 初始化内核页表
   p->kpagetable=proc_kvminit();
-  if(p->kpagetable == 0){
-    freeproc(p);
-    release(&p->lock);
-    return 0;
-  }
+  // if(p->kpagetable == 0){
+  //   freeproc(p);
+  //   release(&p->lock);
+  //   return 0;
+  // }
   char *pa = kalloc();
   if(pa == 0){
     panic("kalloc");
@@ -161,16 +150,7 @@ freeproc(struct proc *p)
   p->trapframe = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
-  if(p->kpagetable){
-    // 删除内核栈
-    if (p->kstack) {
-      proc_free_kstack(p);
-    
-    }
-    proc_free_kpagetable(p->kpagetable);
-  }
   p->pagetable = 0;
-  p->kpagetable=0;
   p->sz = 0;
   p->pid = 0;
   p->parent = 0;
@@ -178,6 +158,20 @@ freeproc(struct proc *p)
   p->chan = 0;
   p->killed = 0;
   p->xstate = 0;
+
+
+
+
+
+
+  // 删除内核栈
+  void *kstack_pa = (void *)kvmpa(p->kpagetable, p->kstack);
+  kfree(kstack_pa);
+  p->kstack=0;
+
+  proc_free_kpagetable(p->kpagetable);
+
+  p->kpagetable=0;
   p->state = UNUSED;
 }
 
@@ -228,16 +222,13 @@ void proc_free_kpagetable(pagetable_t kpagetable)
 {
 
   //释放内核页表的所有pte
-  for (int i = 0; i < 512; ++i) {
+  for(int i = 0; i < 512; i++){
     pte_t pte = kpagetable[i];
-    if ((pte & PTE_V)) {
+    uint64 child = PTE2PA(pte);
+    if((pte & PTE_V) && (pte & (PTE_R|PTE_W|PTE_X)) == 0){ // 如果该页表项指向更低一级的页表
+      // 递归释放低一级页表及其页表项
+      proc_free_kpagetable((pagetable_t)child);
       kpagetable[i] = 0;
-      if ((pte & (PTE_R | PTE_W | PTE_X)) == 0) {
-        uint64 child = PTE2PA(pte);
-        proc_free_kpagetable((pagetable_t)child);
-      }
-    } else if (pte & PTE_V) {
-      panic("proc free kernelpagetable : leaf");
     }
   }
   kfree((void*)kpagetable);
@@ -294,22 +285,20 @@ growproc(int n)
 
   sz = p->sz;
   if(n > 0){
-
-    if (sz + n > CLINT)
-      return -1;
-    if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
+    uint64 newsz;
+    if((newsz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
       return -1;
     }
-
-    
-    if((sz = vmukmap(p->pagetable,p->kpagetable, p->sz, (p->sz) + n)) == 0) {
+    // 内核页表中的映射同步扩大
+    if(vmukmap(p->pagetable, p->kpagetable, sz, n) != 0) {
+      uvmdealloc(p->pagetable, newsz, sz);
       return -1;
     }
-
+    sz = newsz;
   } else if(n < 0){
-    sz = uvmdealloc(p->pagetable, sz, sz + n);
-
-    uvmunmap(p->kpagetable, PGROUNDUP(sz), (PGROUNDUP(p->sz) - PGROUNDUP(sz)) / PGSIZE, 0);
+    uvmdealloc(p->pagetable, sz, sz + n);
+    // 内核页表中的映射同步缩小
+    sz = vmkdealloc(p->kpagetable, sz, sz + n);
   }
   p->sz = sz;
   return 0;
@@ -329,17 +318,24 @@ fork(void)
   }
 
   // Copy user memory from parent to child.
-  if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
+  // if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
+  //   freeproc(np);
+  //   release(&np->lock);
+  //   return -1;
+  // }else{
+  //   //复制子进程页表到内核页表
+  //   if (vmukmap(np->pagetable,np->kpagetable,0,p->sz)<0){
+  //      freeproc(np);
+  //      release(&np->lock);
+  //      return -1; 
+  //   }
+  // }
+  // np->sz = p->sz;
+  if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0 ||
+    vmukmap(np->pagetable, np->kpagetable, 0, p->sz) < 0){
     freeproc(np);
     release(&np->lock);
     return -1;
-  }else{
-    //复制子进程页表到内核页表
-    if (vmukmap(np->pagetable,np->kpagetable,0,p->sz)<0){
-       freeproc(np);
-       release(&np->lock);
-       return -1; 
-    }
   }
   np->sz = p->sz;
 

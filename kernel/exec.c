@@ -51,6 +51,9 @@ exec(char *path, char **argv)
     uint64 sz1;
     if((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz)) == 0)
       goto bad;
+    if(sz1 >= PLIC) { // 添加检测，防止程序大小超过 PLIC
+      goto bad;
+    }
     sz = sz1;
     if(ph.vaddr % PGSIZE != 0)
       goto bad;
@@ -69,9 +72,9 @@ exec(char *path, char **argv)
   sz = PGROUNDUP(sz);
 
 
-  if(sz + 2*PGSIZE >= PLIC) { // 添加检测，防止程序大小超过 PLIC
-      goto bad;
-  }
+  // if(sz + 2*PGSIZE >= PLIC) { // 添加检测，防止程序大小超过 PLIC
+  //     goto bad;
+  // }
 
   uint64 sz1;
   if((sz1 = uvmalloc(pagetable, sz, sz + 2*PGSIZE)) == 0)
@@ -127,14 +130,13 @@ exec(char *path, char **argv)
   // printf("-------old print kpagetable e------\n");
   //----edit start ---- //
   //旧的内核页表释放掉，设置新的内核页表
-  uvmunmap(p->kpagetable, 0, PGROUNDUP(oldsz) / PGSIZE, 0);
-  if (vmukmap(p->pagetable, p->kpagetable, 0, p->sz) < 0)
-    goto bad;
+  uvmunmap(p->kpagetable, 0, PGROUNDUP(oldsz)/PGSIZE, 0);
+  vmukmap(pagetable, p->kpagetable, 0, sz);
   //----edit end ---- //
   // printf("-------print new kpagetable s------\n");
   // vmprint(p->kpagetable);
   // printf("-------print new kpagetable e------\n");
-  if(p->pid==1) vmprint(p->pagetable);
+  vmprint(p->pagetable);
   return argc; // this ends up in a0, the first argument to main(argc, argv)
 
  bad:

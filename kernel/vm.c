@@ -48,6 +48,7 @@ kvminit()
   // // the highest virtual address in the kernel.
   // kvmmap(TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
   kernel_pagetable=proc_kvminit();
+  kvmmap(CLINT, CLINT, 0x10000, PTE_R | PTE_W);
 }
 
 // Switch h/w page table register to the kernel's page table,
@@ -128,14 +129,14 @@ kvmmap(uint64 va, uint64 pa, uint64 sz, int perm)
 // a physical address. only needed for
 // addresses on the stack.
 // assumes va is page aligned.
-uint64
-kvmpa(uint64 va)
+uint64 
+kvmpa(pagetable_t pgtbl, uint64 va)
 {
   uint64 off = va % PGSIZE;
   pte_t *pte;
   uint64 pa;
-  struct proc *p = myproc();
-  pte = walk(p->kpagetable, va, 0);
+
+  pte = walk(pgtbl, va, 0);
   if(pte == 0)
     panic("kvmpa");
   if((*pte & PTE_V) == 0)
@@ -143,6 +144,7 @@ kvmpa(uint64 va)
   pa = PTE2PA(*pte);
   return pa+off;
 }
+
 
 // Create PTEs for virtual addresses starting at va that refer to
 // physical addresses starting at pa. va and size might not
@@ -271,6 +273,19 @@ uvmdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
 
   return newsz;
 }
+uint64
+kvmdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
+{
+  if(newsz >= oldsz)
+    return oldsz;
+
+  if(PGROUNDUP(newsz) < PGROUNDUP(oldsz)){
+    int npages = (PGROUNDUP(oldsz) - PGROUNDUP(newsz)) / PGSIZE;
+    uvmunmap(pagetable, PGROUNDUP(newsz), npages, 0);
+  }
+
+  return newsz;
+}
 
 // Recursively free page-table pages.
 // All leaf mappings must already have been removed.
@@ -338,30 +353,70 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   return -1;
 }
 //赋值pagetable 页表到 kpagetable
-int vmukmap(pagetable_t pagetable, pagetable_t kpagetable, uint64 begin, uint64 end)
+int vmukmap(pagetable_t src, pagetable_t dst, uint64 start, uint64 sz)
 {
-  pte_t *pte;
+//   pte_t *pte;
+//   uint64 pa, i;
+//   uint flags;
+
+//   uint64 begin_page = PGROUNDUP(begin);
+//   for(i = begin_page; i < end; i += PGSIZE){
+//     if((pte = walk(pagetable, i, 0)) == 0)
+//       panic("vmukmap: pte should exist");
+//     if((*pte & PTE_V) == 0)
+//       panic("vmukmap: page not present");
+//     pa = PTE2PA(*pte);
+//     //PTE 有一位 PTE_U 标志了是否为 user page, 获取 PTE 后, 会检查这一位, 如果是内核态且 PTE_U, 则无法访问. 也就是在映射内核页表的时候需要注意, 不要这一位.
+//     flags = PTE_FLAGS(*pte) & ~PTE_U;
+//     if(mappages(kpagetable, i, PGSIZE, pa, flags) != 0)
+//       goto err;
+//   }
+//   return 0;
+
+//  err:
+//   uvmunmap(kpagetable, begin_page, (i - begin_page) / PGSIZE, 1);
+//   return -1;
+pte_t *pte;
   uint64 pa, i;
   uint flags;
 
-  uint64 begin_page = PGROUNDUP(begin);
-  for(i = begin_page; i < end; i += PGSIZE){
-    if((pte = walk(pagetable, i, 0)) == 0)
-      panic("vmukmap: pte should exist");
+  // PGROUNDUP: prevent re-mapping already mapped pages (eg. when doing growproc)
+  for(i = PGROUNDUP(start); i < start + sz; i += PGSIZE){
+    if((pte = walk(src, i, 0)) == 0)
+      panic("kvmcopymappings: pte should exist");
     if((*pte & PTE_V) == 0)
-      panic("vmukmap: page not present");
+      panic("kvmcopymappings: page not present");
     pa = PTE2PA(*pte);
-    //PTE 有一位 PTE_U 标志了是否为 user page, 获取 PTE 后, 会检查这一位, 如果是内核态且 PTE_U, 则无法访问. 也就是在映射内核页表的时候需要注意, 不要这一位.
+    // `& ~PTE_U` 表示将该页的权限设置为非用户页
+    // 必须设置该权限，RISC-V 中内核是无法直接访问用户页的。
     flags = PTE_FLAGS(*pte) & ~PTE_U;
-    if(mappages(kpagetable, i, PGSIZE, pa, flags) != 0)
+    if(mappages(dst, i, PGSIZE, pa, flags) != 0){
       goto err;
+    }
   }
+
   return 0;
 
  err:
-  uvmunmap(kpagetable, begin_page, (i - begin_page) / PGSIZE, 1);
+  // thanks @hdrkna for pointing out a mistake here.
+  // original code incorrectly starts unmapping from 0 instead of PGROUNDUP(start)
+  uvmunmap(dst, PGROUNDUP(start), (i - PGROUNDUP(start)) / PGSIZE, 0);
   return -1;
 }
+
+uint64 vmkdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
+{
+  if(newsz >= oldsz)
+    return oldsz;
+
+  if(PGROUNDUP(newsz) < PGROUNDUP(oldsz)){
+    int npages = (PGROUNDUP(oldsz) - PGROUNDUP(newsz)) / PGSIZE;
+    uvmunmap(pagetable, PGROUNDUP(newsz), npages, 0);
+  }
+
+  return newsz;
+}
+
 
 // mark a PTE invalid for user access.
 // used by exec for the user stack guard page.
@@ -544,8 +599,6 @@ pagetable_t proc_kvminit()
 {
   
   pagetable_t proc_kernel_pagetable = (pagetable_t) kalloc();
-   if (proc_kernel_pagetable == 0)
-    return 0;
 
   memset(proc_kernel_pagetable, 0, PGSIZE);
 
@@ -556,7 +609,7 @@ pagetable_t proc_kvminit()
   proc_kvmmap(proc_kernel_pagetable,VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W);
 
   // CLINT
-  proc_kvmmap(proc_kernel_pagetable,CLINT, CLINT, 0x10000, PTE_R | PTE_W);
+  //proc_kvmmap(proc_kernel_pagetable,CLINT, CLINT, 0x10000, PTE_R | PTE_W);
 
   // PLIC
   proc_kvmmap(proc_kernel_pagetable,PLIC, PLIC, 0x400000, PTE_R | PTE_W);
@@ -588,3 +641,4 @@ void proc_free_kstack(struct proc *p){
     // 删除页表项对应的物理地址
     kfree((void*)PTE2PA(*pte));
 }
+
