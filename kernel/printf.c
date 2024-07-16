@@ -132,3 +132,23 @@ printfinit(void)
   initlock(&pr.lock, "pr");
   pr.locking = 1;
 }
+
+void backtrace(){
+  printf("backtrace:\n");
+  uint64 cfpV = r_fp();
+  uint64 *cfpP = (uint64 *)cfpV;
+  printf("%x\n",cfpV-8);
+
+  //uint64 start = PGROUNDDOWN(cfpV);
+  uint64 end = PGROUNDUP(cfpV);
+
+  while(cfpV<=end){
+    uint64 prevfpV = cfpV - 8;
+    uint64 *prevfpP=(uint64 *)prevfpV;
+
+    cfpV = prevfpV-16;
+    printf("%x\n",*prevfpP);
+  }
+}
+
+
