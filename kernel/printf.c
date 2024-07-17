@@ -134,20 +134,16 @@ printfinit(void)
 }
 
 void backtrace(){
-  printf("backtrace:\n");
+
+  //uint64 ksp =(myproc()->trapframe->kernel_sp); 0x0000003fffffa000 表示栈顶指针
+printf("backtrace: \n");
+  //s0 0x0000003fffff9f80  当前栈帧指针
   uint64 cfpV = r_fp();
-  uint64 *cfpP = (uint64 *)cfpV;
-  printf("%x\n",cfpV-8);
-
-  //uint64 start = PGROUNDDOWN(cfpV);
-  uint64 end = PGROUNDUP(cfpV);
-
-  while(cfpV<=end){
-    uint64 prevfpV = cfpV - 8;
-    uint64 *prevfpP=(uint64 *)prevfpV;
-
-    cfpV = prevfpV-16;
-    printf("%x\n",*prevfpP);
+  uint64 curPage = PGROUNDUP(cfpV);
+  while(curPage == PGROUNDUP(cfpV)){
+    uint64* returnAddrP = (uint64 *)(cfpV-8);
+    printf("%p\n", *returnAddrP);
+    cfpV = *(uint64 *)(cfpV - 16);
   }
 }
 
