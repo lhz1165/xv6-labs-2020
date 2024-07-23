@@ -77,9 +77,11 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
-    yield();
+  //计算机时钟中断入口
+  if(which_dev == 2){
 
+    yield();
+  }
   usertrapret();
 }
 

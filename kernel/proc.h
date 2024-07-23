@@ -82,6 +82,7 @@ struct trapframe {
 
 enum procstate { UNUSED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+typedef void (*sigalarm_handler)(void);
 // Per-process state
 struct proc {
   struct spinlock lock;
@@ -103,4 +104,7 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+  sigalarm_handler handler;   //sigalarm的handler函数
+  
 };
