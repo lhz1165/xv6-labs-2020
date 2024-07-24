@@ -108,9 +108,22 @@ sys_sigalarm(void)
   uint64 handlerP;
   if(argaddr(1, &handlerP) < 0)
     return -1;
-    //把地址转化为函数指针
-  p->handler = (void (*)())handlerP;
+
   p->period = n;
+  printf("sys_sigalarm arg0 %d\n",n);
+
+  //把地址转化为函数指针
+  if(handlerP!=0){
+    p->handler = (void (*)())handlerP;
+     printf("sys_sigalarm arg1 exec \n");
+    p->handler();
+     printf("sys_sigalarm arg1 exec over\n");
+  }else{
+    p->handler=0;
+    printf("p->handler IS NULL\n");
+  }
+
+  printf("sys_sigalarm over \n");
   return 0;
 }
 uint64

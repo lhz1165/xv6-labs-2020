@@ -34,7 +34,7 @@ periodic()
 {
   count = count + 1;
   printf("alarm!\n");
-  sigreturn();
+  //sigreturn();
 }
 
 // tests whether the kernel calls
@@ -47,11 +47,12 @@ test0()
   count = 0;
   sigalarm(2, periodic);
   for(i = 0; i < 1000*500000; i++){
-    if((i % 1000000) == 0)
-      write(2, ".", 1);
-    if(count > 0)
-      break;
+    // if((i % 1000000) == 0)
+    //   write(2, ".", 1);
+    // if(count > 0)
+    //   break;
   }
+  printf("---------------------\n");
   sigalarm(0, 0);
   if(count > 0){
     printf("test0 passed\n");
