@@ -100,6 +100,17 @@ sys_uptime(void)
 uint64
 sys_sigalarm(void)
 {
+  struct proc* p = myproc();
+  int n;
+   if(argint(0, &n) < 0)
+    return -1;
+
+  uint64 handlerP;
+  if(argaddr(1, &handlerP) < 0)
+    return -1;
+    //把地址转化为函数指针
+  p->handler = (void (*)())handlerP;
+  p->period = n;
   return 0;
 }
 uint64

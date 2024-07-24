@@ -105,6 +105,9 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
 
-  sigalarm_handler handler;   //sigalarm的handler函数
-  
+  uint64 period; //频率，sigalarm第一个参数
+  sigalarm_handler handler;   //sigalarm的handler函数，sigalarm第第二个参数
+  uint64 trickCount; //已经trick的次数
+  uint64 isAlarmtest; //是否alarmtest
+
 };
