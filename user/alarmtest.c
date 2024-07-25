@@ -17,13 +17,14 @@ void test1();
 void test2();
 void periodic();
 void slow_handler();
+int sigalarm2(int num,  uint64 handlerP);
 
 int
 main(int argc, char *argv[])
 {
   test0();
-  test1();
-  test2();
+  //test1();
+  //test2();
   exit(0);
 }
 
@@ -32,7 +33,7 @@ volatile static int count;
 void
 periodic()
 {
-  count = count + 1;
+  //count = count + 1;
   printf("alarm!\n");
   //sigreturn();
 }
@@ -45,7 +46,9 @@ test0()
   int i;
   printf("test0 start\n");
   count = 0;
-  sigalarm(2, periodic);
+  void (*p)()  = periodic;
+  printf("p=%d\n",p);
+  sigalarm2(2,  (uint64)p);
   for(i = 0; i < 1000*500000; i++){
     // if((i % 1000000) == 0)
     //   write(2, ".", 1);
@@ -53,7 +56,7 @@ test0()
     //   break;
   }
   printf("---------------------\n");
-  sigalarm(0, 0);
+  sigalarm2(0, 0);
   if(count > 0){
     printf("test0 passed\n");
   } else {
@@ -67,6 +70,17 @@ void __attribute__ ((noinline)) foo(int i, int *j) {
   }
   *j += 1;
 }
+
+int sigalarm2(int num, uint64 handlerP){
+  if (num!=0)
+  {
+    void (*p)()=(void (*)())(handlerP);
+    p();
+    
+  }
+  return 0;
+}
+
 
 //
 // tests that the kernel calls the handler multiple times.

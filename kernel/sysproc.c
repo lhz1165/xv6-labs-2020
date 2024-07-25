@@ -104,26 +104,25 @@ sys_sigalarm(void)
   int n;
    if(argint(0, &n) < 0)
     return -1;
-
-  uint64 handlerP;
+uint64 handlerP;
   if(argaddr(1, &handlerP) < 0)
     return -1;
 
+  p->trickCount=0;
   p->period = n;
   printf("sys_sigalarm arg0 %d\n",n);
-
-  //把地址转化为函数指针
-  if(handlerP!=0){
-    p->handler = (void (*)())handlerP;
-     printf("sys_sigalarm arg1 exec \n");
-    p->handler();
-     printf("sys_sigalarm arg1 exec over\n");
+  if (n!=0)
+  { 
+    //把地址转化为函数指针
+    sigalarm_handler  handler = (void (*)())(handlerP);
+    //handler();
+    p->handler = handler;
+    p->isAlarmtest=1;
   }else{
-    p->handler=0;
-    printf("p->handler IS NULL\n");
+    p->isAlarmtest=0;
   }
 
-  printf("sys_sigalarm over \n");
+  
   return 0;
 }
 uint64
