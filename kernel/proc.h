@@ -82,7 +82,6 @@ struct trapframe {
 
 enum procstate { UNUSED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
-typedef void (*sigalarm_handler)(void);
 // Per-process state
 struct proc {
   struct spinlock lock;
@@ -106,8 +105,9 @@ struct proc {
   char name[16];               // Process name (debugging)
 
   uint64 period; //频率，sigalarm第一个参数
-  sigalarm_handler handler;   //sigalarm的handler函数，sigalarm第第二个参数
+  uint64 handlerAddr;   //sigalarm的handler函数，sigalarm第第二个参数
   uint64 trickCount; //已经trick的次数
   uint64 isAlarmtest; //是否alarmtest
+  struct trapframe *prevTrapframe; //时钟中断到用户态时，保存当前进程的trapframe
 
 };

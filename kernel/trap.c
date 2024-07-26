@@ -79,7 +79,21 @@ usertrap(void)
   // give up the CPU if this is a timer interrupt.
   //计算机时钟中断入口
   if(which_dev == 2){
+    struct proc* p = myproc();
+    if (p->isAlarmtest==1)
+    {
+      uint64 trickCount = p->trickCount;
+      uint64 trick = p->period;
+      //指定时钟周期之后报警
+      if(trickCount>=trick){
+        //pc切换到用户空间的handler函数
+        p->trapframe->epc=p->handlerAddr;
+      }else{
+        p->trickCount = p->trickCount+1;
+      }
 
+    }
+    
     yield();
   }
   usertrapret();
