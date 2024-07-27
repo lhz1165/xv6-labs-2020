@@ -101,30 +101,62 @@ uint64
 sys_sigalarm(void)
 {
   struct proc* p = myproc();
-  int n;
-   if(argint(0, &n) < 0)
+  int ticks;
+   if(argint(0, &ticks) < 0)
     return -1;
   uint64 handlerP;
   if(argaddr(1, &handlerP) < 0)
     return -1;
 
-  p->period = n;
-  printf("sys_sigalarm arg0 %d\n",n);
-  if (n!=0)
-  { 
-    //把地址转化为函数指针
-    p->handlerAddr = handlerP;
-    printf("sys_sigalarm arg1 %d\n",handlerP);
-    p->isAlarmtest=1;
-  }else{
-    p->isAlarmtest=0;
-  }
+  p->period = ticks;
+
+  //把地址转化为函数指针
+  p->handlerAddr = handlerP;
+  p->trickCount = 0;
 
   return 0;
 }
 uint64
 sys_sigreturn(void)
 {
+  struct proc* p = myproc();
+
+  p->trapframe->kernel_satp=p->prevTrapframe->kernel_satp;
+  p->trapframe->kernel_sp=p->prevTrapframe->kernel_sp;
+  p->trapframe->kernel_trap=p->prevTrapframe->kernel_trap;
+  p->trapframe->epc=p->prevTrapframe->epc;
+  p->trapframe->kernel_hartid=p->prevTrapframe->kernel_hartid;
+  p->trapframe->ra=p->prevTrapframe->ra;
+  p->trapframe->sp=p->prevTrapframe->sp;
+  p->trapframe->gp=p->prevTrapframe->gp;
+  p->trapframe->tp=p->prevTrapframe->tp;
+  p->trapframe->t0=p->prevTrapframe->t0;
+  p->trapframe->t1=p->prevTrapframe->t1;
+  p->trapframe->t2=p->prevTrapframe->t2;
+  p->trapframe->s0=p->prevTrapframe->s0;
+  p->trapframe->s1=p->prevTrapframe->s1;
+  p->trapframe->a0=p->prevTrapframe->a0;
+  p->trapframe->a1=p->prevTrapframe->a1;
+  p->trapframe->a2=p->prevTrapframe->a2;
+  p->trapframe->a3=p->prevTrapframe->a3;
+  p->trapframe->a4=p->prevTrapframe->a4;
+  p->trapframe->a5=p->prevTrapframe->a5;
+  p->trapframe->a6=p->prevTrapframe->a6;
+  p->trapframe->s2=p->prevTrapframe->s2;
+  p->trapframe->s3=p->prevTrapframe->s3;
+  p->trapframe->s5=p->prevTrapframe->s5;
+  p->trapframe->s6=p->prevTrapframe->s6;
+  p->trapframe->s7=p->prevTrapframe->s7;
+  p->trapframe->s8=p->prevTrapframe->s8;
+  p->trapframe->s9=p->prevTrapframe->s9;
+  p->trapframe->s10=p->prevTrapframe->s10;
+  p->trapframe->s11=p->prevTrapframe->s11;
+  p->trapframe->t3=p->prevTrapframe->t3;
+  p->trapframe->t4=p->prevTrapframe->t4;
+  p->trapframe->t5=p->prevTrapframe->t5;
+  p->trapframe->t6=p->prevTrapframe->t6;
+  //*p->trapframe = *p->prevTrapframe; 
+  p->rerntrantCount=0;
   return 0;
 }
 

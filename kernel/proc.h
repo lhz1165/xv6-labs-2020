@@ -107,7 +107,7 @@ struct proc {
   uint64 period; //频率，sigalarm第一个参数
   uint64 handlerAddr;   //sigalarm的handler函数，sigalarm第第二个参数
   uint64 trickCount; //已经trick的次数
-  uint64 isAlarmtest; //是否alarmtest
+  uint64 isAlarmtest; //是否需要alarmtest的handler 0代表未设置 1代表设置了
   struct trapframe *prevTrapframe; //时钟中断到用户态时，保存当前进程的trapframe
-
+  uint64 rerntrantCount; //进入sigalarm的次数
 };

@@ -80,20 +80,54 @@ usertrap(void)
   //计算机时钟中断入口
   if(which_dev == 2){
     struct proc* p = myproc();
-    if (p->isAlarmtest==1)
+    if (p->period>0)
     {
-      uint64 trickCount = p->trickCount;
-      uint64 trick = p->period;
-      //指定时钟周期之后报警
-      if(trickCount>=trick){
-        //pc切换到用户空间的handler函数
+      p->trickCount++;
+       //指定时钟周期之后报警
+      if(p->trickCount>=p->period && p->rerntrantCount==0){
+        p->trickCount=0;
+        
+        p->prevTrapframe->kernel_satp=p->trapframe->kernel_satp;
+        p->prevTrapframe->kernel_sp=p->trapframe->kernel_sp;
+        p->prevTrapframe->kernel_trap=p->trapframe->kernel_trap;
+        p->prevTrapframe->epc=p->trapframe->epc;
+        p->prevTrapframe->kernel_hartid=p->trapframe->kernel_hartid;
+        p->prevTrapframe->ra=p->trapframe->ra;
+        p->prevTrapframe->sp=p->trapframe->sp;
+        p->prevTrapframe->gp=p->trapframe->gp;
+        p->prevTrapframe->tp=p->trapframe->tp;
+        p->prevTrapframe->t0=p->trapframe->t0;
+        p->prevTrapframe->t1=p->trapframe->t1;
+        p->prevTrapframe->t2=p->trapframe->t2;
+        p->prevTrapframe->s0=p->trapframe->s0;
+        p->prevTrapframe->s1=p->trapframe->s1;
+        p->prevTrapframe->a0=p->trapframe->a0;
+        p->prevTrapframe->a1=p->trapframe->a1;
+        p->prevTrapframe->a2=p->trapframe->a2;
+        p->prevTrapframe->a3=p->trapframe->a3;
+        p->prevTrapframe->a4=p->trapframe->a4;
+        p->prevTrapframe->a5=p->trapframe->a5;
+        p->prevTrapframe->a6=p->trapframe->a6;
+        p->prevTrapframe->s2=p->trapframe->s2;
+        p->prevTrapframe->s3=p->trapframe->s3;
+        p->prevTrapframe->s5=p->trapframe->s5;
+        p->prevTrapframe->s6=p->trapframe->s6;
+        p->prevTrapframe->s7=p->trapframe->s7;
+        p->prevTrapframe->s8=p->trapframe->s8;
+        p->prevTrapframe->s9=p->trapframe->s9;
+        p->prevTrapframe->s10=p->trapframe->s10;
+        p->prevTrapframe->s11=p->trapframe->s11;
+        p->prevTrapframe->t3=p->trapframe->t3;
+        p->prevTrapframe->t4=p->trapframe->t4;
+        p->prevTrapframe->t5=p->trapframe->t5;
+        p->prevTrapframe->t6=p->trapframe->t6;
+        //*p->prevTrapframe = *p->trapframe; 
+         //pc切换到用户空间的handler函数
         p->trapframe->epc=p->handlerAddr;
-      }else{
-        p->trickCount = p->trickCount+1;
+        p->rerntrantCount=1; 
       }
 
     }
-    
     yield();
   }
   usertrapret();

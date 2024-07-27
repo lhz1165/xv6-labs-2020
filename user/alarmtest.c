@@ -22,8 +22,8 @@ int
 main(int argc, char *argv[])
 {
   test0();
-  //test1();
-  //test2();
+  test1();
+  test2();
   exit(0);
 }
 
@@ -45,7 +45,7 @@ test0()
   int i;
   printf("test0 start\n");
   count = 0;
-  sigalarm(2,  periodic);
+  sigalarm(2, periodic);
   for(i = 0; i < 1000*500000; i++){
     if((i % 1000000) == 0)
       write(2, ".", 1);
@@ -66,8 +66,6 @@ void __attribute__ ((noinline)) foo(int i, int *j) {
   }
   *j += 1;
 }
-
-
 
 //
 // tests that the kernel calls the handler multiple times.
