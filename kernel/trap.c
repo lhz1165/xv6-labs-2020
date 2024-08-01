@@ -68,11 +68,24 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     // ok
 
-  } else if(r_scause()==15){
+  } 
+  
+  //else if(r_scause()==15 || r_scause()==13 ){
     //page fault 懒加载分配物理内存
+   // uint64 va = r_stval();
+    //char *mem = kalloc();
+    //struct proc* p = myproc();
+    
 
+    // if(mappages(p->pagetable, a, PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0){
+    //   kfree(mem);
+    //   uvmdealloc(pagetable, a, oldsz);
+    //   return 0;
+    // }
 
-  }else {
+  //}
+
+  else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;
