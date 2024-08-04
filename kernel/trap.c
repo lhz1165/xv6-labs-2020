@@ -87,10 +87,7 @@ usertrap(void)
       kfree(mem);
       printf("va no need new page\n");
     }
-
-    
-
-  }else {
+  else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;
