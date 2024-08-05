@@ -75,7 +75,7 @@ usertrap(void)
     struct proc *p = myproc();
     if (p->sz <= va)
     {
-      printf("va error\n");
+      //printf("va error\n");
        p->killed = 1;
     }
 
@@ -87,7 +87,7 @@ usertrap(void)
       kfree(mem);
       printf("va no need new page\n");
     }
-  else {
+  }else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;
@@ -102,7 +102,6 @@ usertrap(void)
 
   usertrapret();
 }
-
 //
 // return to user space
 //
