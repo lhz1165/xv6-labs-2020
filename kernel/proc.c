@@ -700,18 +700,22 @@ int is_lazy_addr(uint64 va){
 
   if(va < PGROUNDDOWN(p->trapframe->sp)&& va >= PGROUNDDOWN(p->trapframe->sp) - PGSIZE){
     // 防止 guard page，这个之后会提到
+    printf("guard page\n");
     return 0;
   }
-  if(va > MAXVA){
+  if(va >= MAXVA){
+    printf("va is %p ,MAXVA is %p\n",va,MAXVA);
     return 0;
   }
   pte_t* pte = walk(p->pagetable, va, 0);
   
   if(pte && (*pte & PTE_V)){
+    printf("PTE_V\n");
     return 0;
   }  
 
   if(va >= p->sz){
+    printf("va >= p->sz\n");
     return 0;
   }
 

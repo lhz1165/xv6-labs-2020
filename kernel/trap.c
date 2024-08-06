@@ -74,13 +74,10 @@ usertrap(void)
     uint64 va = r_stval(); 
     //1判断va是否合法
     if(!is_lazy_addr(va)){
+        printf("kill\n");
         p->killed = 1;
     }
     
-    
-
-
-
 
     //2分配内存
     char * mem = kalloc();
