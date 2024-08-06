@@ -71,14 +71,18 @@ usertrap(void)
   } else if(r_scause()==15 || r_scause()==13){
     
     //page fault 懒加载分配物理内存
-    uint64 va = r_stval();
-    struct proc *p = myproc();
-    if (p->sz <= va)
-    {
-      //printf("va error\n");
-       p->killed = 1;
+    uint64 va = r_stval(); 
+    //1判断va是否合法
+    if(!is_lazy_addr(va)){
+        p->killed = 1;
     }
+    
+    
 
+
+
+
+    //2分配内存
     char * mem = kalloc();
     //PGROUNDUP
     va = PGROUNDDOWN(va);

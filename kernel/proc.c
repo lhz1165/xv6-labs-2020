@@ -694,3 +694,26 @@ procdump(void)
     printf("\n");
   }
 }
+
+int is_lazy_addr(uint64 va){
+  struct proc* p = myproc();
+
+  if(va < PGROUNDDOWN(p->trapframe->sp)&& va >= PGROUNDDOWN(p->trapframe->sp) - PGSIZE){
+    // 防止 guard page，这个之后会提到
+    return 0;
+  }
+  if(va > MAXVA){
+    return 0;
+  }
+  pte_t* pte = walk(p->pagetable, va, 0);
+  
+  if(pte && (*pte & PTE_V)){
+    return 0;
+  }  
+
+  if(va >= p->sz){
+    return 0;
+  }
+
+  return 1;
+}
