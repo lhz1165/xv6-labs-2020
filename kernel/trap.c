@@ -68,14 +68,21 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     // ok
 
+  
   } else if(r_scause()==15 || r_scause()==13){
+    // 1 Handle negative sbrk() arguments.（sys_sbrk √）
+    // 2 Kill a process if it page-faults on a virtual memory address higher than any allocated with sbrk().（is_lazy_addr √）
+    // 3 Handle the parent-to-child memory copy in fork() correctly.
+    // 4 Handle the case in which a process passes a valid address from sbrk() to a system call such as read or write, but the memory for that address has not yet been allocated.
+    // 5 Handle out-of-memory correctly: if kalloc() fails in the page fault handler, kill the current process. （is_lazy_addr √）
+    // 6 Handle faults on the invalid page below the user stack. （is_lazy_addr √）
     
     //page fault 懒加载分配物理内存
     uint64 va = r_stval(); 
-    //1判断va是否合法
+    //1判断va是否合法（hit2，5，6）
     if(!is_lazy_addr(va)){
-        printf("kill\n");
         p->killed = 1;
+        exit(-1);
     }
     
 
