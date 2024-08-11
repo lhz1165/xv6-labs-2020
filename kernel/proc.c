@@ -699,7 +699,7 @@ int is_lazy_addr(uint64 va){
   struct proc* p = myproc();
   //hit6
   if(va < PGROUNDDOWN(p->trapframe->sp)&& va >= PGROUNDDOWN(p->trapframe->sp) - PGSIZE){
-    // 防止 guard page，这个之后会提到
+    //进入guard page之间
     printf("guard page\n");
     return 0;
   }
@@ -707,16 +707,37 @@ int is_lazy_addr(uint64 va){
   if(va >= MAXVA){
     return 0;
   }
-  // pte_t* pte = walk(p->pagetable, va, 0);
+  pte_t* pte = walk(p->pagetable, va, 0);
   
-  // if(pte && (*pte & PTE_V)){
-  //   return 0;
-  // }  
+  //如果pte已经被使用了 那么返回 为什么pagefalut还有有被使用的情况？
+  if(pte && (*pte & PTE_V)){
+    return 0;
+  }  
 
   //hit2
   if(va >= p->sz){
     return 0;
   }
 
+  return 1;
+}
+
+int lazy_alloc(uint64 va){
+  struct proc* p = myproc();
+
+  char * pa = kalloc();
+  if (pa==0)
+  {
+    return 0;
+  }
+ 
+  //PGROUNDUP
+  va = PGROUNDDOWN(va);
+  memset(pa, 0, PGSIZE);
+  if(mappages(p->pagetable, va, PGSIZE, (uint64)pa, PTE_W|PTE_X|PTE_R|PTE_U) != 0){
+    kfree(pa);
+    printf("va no need new page\n");
+    return 0;
+  }
   return 1;
 }

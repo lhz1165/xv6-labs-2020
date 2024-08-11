@@ -46,23 +46,18 @@ sys_sbrk(void)
   struct proc *p = myproc();
   if(argint(0, &n) < 0)
     return -1;
-  if (n<0)
-  {
-    if (p->sz + n < 0)
-    {
-        return -1;
-    }
-    
-    if(growproc(n) < 0)
-       printf("growproc err\n");
+  addr = p->sz;
+  if(n < 0){
+    if(p->sz + n < 0){ 
       return -1;
+    }
+    if(growproc(n) < 0){
+      return -1;
+    }
   }else{
-    addr = p->sz;
-    p->sz = p->sz+n;
-    return addr;
+    myproc()->sz += n;
   }
-  
-  
+  return addr;
 }
 
 uint64

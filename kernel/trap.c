@@ -77,24 +77,18 @@ usertrap(void)
     // 5 Handle out-of-memory correctly: if kalloc() fails in the page fault handler, kill the current process. （is_lazy_addr √）
     // 6 Handle faults on the invalid page below the user stack. （is_lazy_addr √）
     
-    //page fault 懒加载分配物理内存
+    //page fault 懒加载分配物理内存  usertests rwsbrk
     uint64 va = r_stval(); 
     //1判断va是否合法（hit2，5，6）
     if(!is_lazy_addr(va)){
         p->killed = 1;
-        exit(-1);
+    }else{
+      //2分配内存
+      if(!lazy_alloc(va)){
+          p->killed = 1;
+      }
     }
     
-
-    //2分配内存
-    char * mem = kalloc();
-    //PGROUNDUP
-    va = PGROUNDDOWN(va);
-    memset(mem, 0, PGSIZE);
-    if(mappages(p->pagetable, va, PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0){
-      kfree(mem);
-      printf("va no need new page\n");
-    }
   }else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
