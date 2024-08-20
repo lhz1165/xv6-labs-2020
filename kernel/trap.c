@@ -65,10 +65,14 @@ usertrap(void)
     intr_on();
 
     syscall();
-    //Here's a reasonable plan of attack.
+  } else if((which_dev = devintr()) != 0){
+    // ok
 
-    // Modify uvmcopy() to map the parent's physical pages into the child, instead of allocating new pages. Clear PTE_W in the PTEs of both child and parent.
-    // Modify usertrap() to recognize page faults. When a page-fault occurs on a COW page, allocate a new page with kalloc(), copy the old page to the new page, and install the new page in the PTE with PTE_W set.
+
+
+    //Here's a reasonable plan of attack.
+    // 1（√）.Modify uvmcopy() to map the parent's physical pages into the child, instead of allocating new pages. Clear PTE_W in the PTEs of both child and parent.
+    // 2（√）.Modify usertrap() to recognize page faults. When a page-fault occurs on a COW page, allocate a new page with kalloc(), copy the old page to the new page, and install the new page in the PTE with PTE_W set.
     // Ensure that each physical page is freed when the last PTE reference to it goes away -- but not before. A good way to do this is to keep, for each physical page, a "reference count" of the number of user page tables that refer to that page. Set a page's reference count to one when kalloc() allocates it. Increment a page's reference count when fork causes a child to share the page, and decrement a page's count each time any process drops the page from its page table. kfree() should only place a page back on the free list if its reference count is zero. It's OK to to keep these counts in a fixed-size array of integers. You'll have to work out a scheme for how to index the array and how to choose its size. For example, you could index the array with the page's physical address divided by 4096, and give the array a number of elements equal to highest physical address of any page placed on the free list by kinit() in kalloc.c.
     // Modify copyout() to use the same scheme as page faults when it encounters a COW page.
     // Some hints:
@@ -78,9 +82,10 @@ usertrap(void)
     // usertests explores scenarios that cowtest does not test, so don't forget to check that all tests pass for both.
     // Some helpful macros and definitions for page table flags are at the end of kernel/riscv.h.
     // If a COW page fault occurs and there's no free memory, the process should be killed.
-  } else if((which_dev = devintr()) != 0){
-    // ok
-  } else {
+  }else if(r_scause()==15 && isCowPage(p->pagetable,r_stval())) {
+      //2（√）page faults,并且是cow页，那么copy
+
+  }else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;
