@@ -320,7 +320,7 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
       panic("uvmcopy: page not present");
     pa = PTE2PA(*pte);
     //1（√）子进程不需要分配物理内存，直接使用父进程的
-    //标记当前页不能写,标记为cow页
+    // Clear PTE_W in the PTEs of both child and parent
     *pte &= (~PTE_W); 
     *pte |= PTE_C;
 
@@ -453,4 +453,8 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
 int isCowPage(pagetable_t pt,uint64 va){
   pte_t* pte = walk(pt, va, 0);
   return (*pte) & PTE_C;
+}
+
+int cpoyWritePage(uint64){
+  
 }

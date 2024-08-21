@@ -84,6 +84,14 @@ usertrap(void)
     // If a COW page fault occurs and there's no free memory, the process should be killed.
   }else if(r_scause()==15 && isCowPage(p->pagetable,r_stval())) {
       //2（√）page faults,并且是cow页，那么copy
+      char *pa = kalloc();
+      if (pa==0){
+        p->killed = 1;
+      }else{
+        uint64 va = r_stval();
+        pte_t *pte = walk(va, 0, 0);
+      }
+      
 
   }else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
