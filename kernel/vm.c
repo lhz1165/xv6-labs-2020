@@ -455,6 +455,26 @@ int isCowPage(pagetable_t pt,uint64 va){
   return (*pte) & PTE_C;
 }
 
-int cpoyWritePage(uint64){
+int cpoyWritePage(pagetable_t pagetable,uint64 va,char *newPa){
+  pte_t *pte = walk(pagetable, va, 0);
+  if (pte==0)
+  {
+    return 0;
+  }
+  uint64 pa = walkaddr(pagetable,va);
+  if (pa ==0)
+  {
+    return 0;
+  }
   
+  memmove(newPa,(char*)pa,PGSIZE);
+
+  *pte |=PTE_W;
+  *pte &=(~PTE_C);
+  uint flags = PTE_FLAGS(*pte);
+  if(mappages(pagetable,va,PGSIZE,(uint64)newPa,flags)!=0){
+    uvmunmap(pagetable,va,1,1);
+    return 0;
+  }
+  return 1;
 }
