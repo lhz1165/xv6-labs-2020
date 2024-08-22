@@ -157,7 +157,15 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
     if((pte = walk(pagetable, a, 1)) == 0)
       return -1;
     if(*pte & PTE_V)
-      panic("remap");
+    {
+      if (*pte & PTE_C)
+      {
+        
+      }else{
+        panic("remap");
+      }  
+    }
+      
     *pte = PA2PTE(pa) | perm | PTE_V;
     if(a == last)
       break;
@@ -468,9 +476,11 @@ int cpoyWritePage(pagetable_t pagetable,uint64 va,char *newPa){
   }
   
   memmove(newPa,(char*)pa,PGSIZE);
-
+  //可以写
   *pte |=PTE_W;
-  *pte &=(~PTE_C);
+  //是COW
+  //*pte &=(~PTE_C);
+  *pte |=PTE_C;
   uint flags = PTE_FLAGS(*pte);
   if(mappages(pagetable,va,PGSIZE,(uint64)newPa,flags)!=0){
     uvmunmap(pagetable,va,1,1);
