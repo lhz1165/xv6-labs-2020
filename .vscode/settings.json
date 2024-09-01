@@ -1,3 +1,14 @@
 {
-    "makefile.configureOnOpen": false
+    "makefile.configureOnOpen": false,
+    "files.associations": {
+        "types.h": "c",
+        "riscv.h": "c",
+        "defs.h": "c",
+        "spinlock.h": "c",
+        "proc.h": "c",
+        "memlayout.h": "c",
+        "param.h": "c",
+        "elf.h": "c",
+        "fs.h": "c"
+    }
 }

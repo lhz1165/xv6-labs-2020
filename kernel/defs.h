@@ -63,6 +63,8 @@ void            ramdiskrw(struct buf*);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
+void*           kcopy_n_deref(void *pa);
+void            krefpage(void *pa);
 
 // log.c
 void            initlog(int, struct superblock*);
@@ -172,7 +174,9 @@ int             copyout(pagetable_t, uint64, char *, uint64);
 int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
 int             isCowPage(pagetable_t pt,uint64 va);
-int             cpoyWritePage(pagetable_t pagetable,uint64 va,char *newPa);
+int             uvmcowcopy(uint64 va);
+
+int             uvmcheckcowpage(uint64 va);
 
 // plic.c
 void            plicinit(void);

@@ -82,18 +82,11 @@ usertrap(void)
     // usertests explores scenarios that cowtest does not test, so don't forget to check that all tests pass for both.
     // Some helpful macros and definitions for page table flags are at the end of kernel/riscv.h.
     // If a COW page fault occurs and there's no free memory, the process should be killed.
-  }else if(r_scause()==15 && isCowPage(p->pagetable,r_stval())) {
-      //2（√）page faults想要写入,并且是cow页，那么copy
-      char *newPa = kalloc();
-      if (newPa==0){
-        p->killed = 1;
-      }else{
-        uint64 va = r_stval();
-        cpoyWritePage(p->pagetable,va,newPa);
-      }
-      
-
-  }else {
+  }else if((r_scause() == 13 || r_scause() == 15) && uvmcheckcowpage(r_stval())) { // copy-on-write
+    if(uvmcowcopy(r_stval()) == -1){ // 如果内存不足，则杀死进程
+      p->killed = 1;
+    }
+  } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;
