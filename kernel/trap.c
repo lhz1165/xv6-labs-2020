@@ -83,7 +83,8 @@ usertrap(void)
     // Some helpful macros and definitions for page table flags are at the end of kernel/riscv.h.
     // If a COW page fault occurs and there's no free memory, the process should be killed.
   }else if((r_scause() == 13 || r_scause() == 15) && uvmcheckcowpage(r_stval())) { // copy-on-write
-    if(uvmcowcopy(r_stval()) == -1){ // 如果内存不足，则杀死进程
+    //试图写cow页
+    if(uvmcowcopy(r_stval()) == -1){
       p->killed = 1;
     }
   } else {

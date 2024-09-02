@@ -479,16 +479,23 @@ int uvmcowcopy(uint64 va) {
   // 调用 kalloc.c 中的 kcopy_n_deref 方法，复制页
   // (如果懒复制页的引用已经为 1，则不需要重新分配和复制内存页，只需清除 PTE_COW 标记并标记 PTE_W 即可)
   uint64 pa = PTE2PA(*pte);
-  uint64 new = (uint64)kcopy_n_deref((void*)pa); // 将一个懒复制的页引用变为一个实复制的页
+
+  //如果cow页只有当前一个引用 那么页表设置为可写，否则创建新的cow页
+  uint64 new = (uint64)kcopy_n_deref((void*)pa); 
   if(new == 0)
     return -1;
   
   // 重新映射为可写，并清除 PTE_COW 标记
   uint64 flags = (PTE_FLAGS(*pte) | PTE_W) & ~PTE_C;
+
+  //把要写的虚拟地址指向新的页，所以要先清除原来的映射
   uvmunmap(p->pagetable, PGROUNDDOWN(va), 1, 0);
+
+  //创建新的映射
   if(mappages(p->pagetable, va, 1, new, flags) == -1) {
     panic("uvmcowcopy: mappages");
   }
+  
   return 0;
 }
 

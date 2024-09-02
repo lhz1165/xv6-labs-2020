@@ -13,14 +13,10 @@
 #define PA2PGREF_ID(p) (((p)-KERNBASE)/PGSIZE)
 #define PGREF_MAX_ENTRIES PA2PGREF_ID(PHYSTOP)
 
-struct spinlock pgreflock; // 用于 pageref 数组的锁，防止竞态条件引起内存泄漏
-int pageref[PGREF_MAX_ENTRIES]; // 从 KERNBASE 开始到 PHYSTOP 之间的每个物理页的引用计数
-// note:  reference counts are incremented on fork, not on mapping. this means that
-//        multiple mappings of the same physical page within a single process are only
-//        counted as one reference.
-//        this shouldn't be a problem, though. as there's no way for a user program to map
-//        a physical page twice within it's address space in xv6.
-
+// 用于 pageref 数组的锁，防止竞态条件引起内存泄漏
+struct spinlock pgreflock; 
+ // 从 KERNBASE 开始到 PHYSTOP 之间的每个物理页的引用计数
+int pageref[PGREF_MAX_ENTRIES];
 // 通过物理地址获得引用计数
 #define PA2PGREF(p) pageref[PA2PGREF_ID((uint64)(p))]
 
