@@ -368,7 +368,8 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
   uint64 n, va0, pa0;
 
   while(len > 0){
-    if(uvmcheckcowpage(dstva)){// 检查每一个被写的页是否是 COW 页
+    //通过软件的方式在user物理内存写值，这一页可能是cow页，需要提前分配
+    if(uvmcheckcowpage(dstva)){
        uvmcowcopy(dstva);
     } 
      
@@ -473,8 +474,19 @@ int uvmcowcopy(uint64 va) {
   pte_t *pte;
   struct proc *p = myproc();
 
-  if((pte = walk(p->pagetable, va, 0)) == 0)
-    panic("uvmcowcopy: walk");
+  if (va >= p->sz){
+    return -1;
+  }
+
+  if((pte = walk(p->pagetable, va, 0)) == 0){
+    return -1;
+  }
+   
+
+  if ((*pte & PTE_V)==0 || (*pte & PTE_C)==0)
+  {
+     return -1;
+  }
   
   // 调用 kalloc.c 中的 kcopy_n_deref 方法，复制页
   // (如果懒复制页的引用已经为 1，则不需要重新分配和复制内存页，只需清除 PTE_COW 标记并标记 PTE_W 即可)
