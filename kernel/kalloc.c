@@ -81,6 +81,7 @@ kfree(void *pa)
   pop_off();
 }
 
+
 // Allocate one 4096-byte page of physical memory.
 // Returns a pointer that the kernel can use.
 // Returns 0 if the memory cannot be allocated.
@@ -89,9 +90,38 @@ kalloc(void)
 {
   struct run *r;
   push_off(); 
+
   int cpu_id =cpuid();
   
   acquire(&kmem[cpu_id].lock);
+  if (!kmem[cpu_id].freelist)
+  {
+    int need_page=64;
+    for (int i = 0; i < NCPU; i++)
+    {
+      if (i == cpu_id)
+      {
+        continue;
+      }
+      acquire(&kmem[i].lock);
+      struct run *rr = kmem[i].freelist;
+      while (rr && need_page>0)
+      {
+        kmem[i].freelist=rr->next;
+        rr->next=kmem[cpu_id].freelist;
+        kmem[cpu_id].freelist=rr;
+        rr = kmem[i].freelist;  
+        need_page--; 
+      }
+      release(&kmem[i].lock);
+      if (need_page==0)
+      {
+        break;
+      }
+      
+    }
+  }
+ 
   r = kmem[cpu_id].freelist;
   
 
@@ -105,3 +135,4 @@ kalloc(void)
   return (void*)r;
  
 }
+
