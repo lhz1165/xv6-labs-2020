@@ -374,23 +374,33 @@ iunlockput(struct inode *ip)
 
 // Return the disk block address of the nth block in inode ip.
 // If there is no such block, bmap allocates one.
+
 static uint
 bmap(struct inode *ip, uint bn)
 {
+  //addr 磁盘块块地址
   uint addr, *a;
-  struct buf *bp;
+  struct buf *bp, *bp2;
 
+  //前11个直接地址
   if(bn < NDIRECT){
-    if((addr = ip->addrs[bn]) == 0)
+    if((addr = ip->addrs[bn]) == 0){
+      //如果不存在 分配
       ip->addrs[bn] = addr = balloc(ip->dev);
+    }
+    //存在直接返回 addrs[bn]
     return addr;
   }
+  //因为如果是bn=11，那么就是那么就是第一个一级间接地址 ,要减去才找到的，bn=11-NDIRECT=0
   bn -= NDIRECT;
 
+  //间接地址有256个
   if(bn < NINDIRECT){
-    // Load indirect block, allocating if necessary.
-    if((addr = ip->addrs[NDIRECT]) == 0)
+    //如果不存在分配一个块，用来保存256个地址
+    if((addr = ip->addrs[NDIRECT]) == 0){
       ip->addrs[NDIRECT] = addr = balloc(ip->dev);
+    }
+    //从当前块 读取内容（256个地址）
     bp = bread(ip->dev, addr);
     a = (uint*)bp->data;
     if((addr = a[bn]) == 0){
@@ -400,7 +410,38 @@ bmap(struct inode *ip, uint bn)
     brelse(bp);
     return addr;
   }
+  
+  bn -= NINDIRECT;
+  //二级间接地址
+  if (bn < NINDIRECT*NINDIRECT)
+  {
+    //最后一块，不存在分配一个块，用来保存256个地址
+    if((addr = ip->addrs[NINDIRECT+1]) == 0){
+      ip->addrs[NINDIRECT+1] = addr = balloc(ip->dev);
+    }
+    //从当前块 读取内容（256个地址）
+    bp = bread(ip->dev, addr);
+    a = (uint*)bp->data;
 
+    //先找在一级地址哪个块
+    uint one_bn = bn / NINDIRECT;
+    if((addr = a[one_bn]) == 0){
+        a[one_bn] = addr = balloc(ip->dev);
+         log_write(bp);
+    }
+    brelse(bp);
+
+    //再找二级块
+    bp2 = bread(ip->dev, addr);
+    uint two_bn = bn % NINDIRECT;
+    a = (uint*)bp2->data;
+    if((addr = a[two_bn]) == 0){
+      a[two_bn] = addr = balloc(ip->dev);
+      log_write(bp2);
+    }
+    brelse(bp2);
+    return addr;
+  }
   panic("bmap: out of range");
 }
 
@@ -430,6 +471,30 @@ itrunc(struct inode *ip)
     brelse(bp);
     bfree(ip->dev, ip->addrs[NDIRECT]);
     ip->addrs[NDIRECT] = 0;
+  }
+   if(ip->addrs[NDIRECT + 1]){ 
+    //读一个数据保存256个地址的块
+    bp = bread(ip->dev, ip->addrs[NDIRECT + 1]);
+    a = (uint*)bp->data;
+
+    //遍历256个地址
+    for (i = 0; i < NINDIRECT; i++){ // 遍历一级块
+      if(a[i]){ 
+        //读这个地址指向的256地址
+        struct buf* bp2 = bread(ip->dev, a[i]); // 获取这个块的对应缓存
+        uint *a2 = (uint*)bp2->data;
+        for(j = 0; j < NINDIRECT; j++){
+          if(a2[j])
+            bfree(ip->dev, a2[j]); // a2[j] 存的是块号，这里把磁盘中这个块的内容清空了。或者说释放
+        } 
+ 
+        brelse(bp2); 
+        bfree(ip->dev, a[i]); 
+      }      
+    }
+    brelse(bp); // 释放缓存
+    bfree(ip->dev, ip->addrs[NDIRECT + 1]); // 释放磁盘块
+    ip->addrs[NDIRECT + 1] = 0;
   }
 
   ip->size = 0;
