@@ -243,12 +243,14 @@ create(char *path, short type, short major, short minor)
 {
   struct inode *ip, *dp;
   char name[DIRSIZ];
-
+  //把path的文件解析名到 char name[],返回dp是文件夹indoe
   if((dp = nameiparent(path, name)) == 0)
     return 0;
 
+  //获取一个父目录的inode
   ilock(dp);
 
+  //在父目录查询当前文件的 inode
   if((ip = dirlookup(dp, name, 0)) != 0){
     iunlockput(dp);
     ilock(ip);
@@ -485,7 +487,28 @@ sys_pipe(void)
   return 0;
 }
 
+
+// 用new 指向 old的路径
+//1 为new创建一个inode文件，
+//2 inode里面保存old路径
 uint64
-sys_symlink(){
-  
+sys_symlink(void){
+  //target path 
+ char name[DIRSIZ], new[MAXPATH], old[MAXPATH];
+  struct inode *ip;
+
+  if(argstr(0, old, MAXPATH) < 0 || argstr(1, new, MAXPATH) < 0)
+    return -1;
+  begin_op();
+
+  //1 为new创建一个inode文件
+  if((ip = create(new, T_SYMLINK, 0, 0)) == 0){
+    end_op();
+    return -1;
+  }
+  //2inode里面保存old路径
+
+
+
+  return -1;
 }
