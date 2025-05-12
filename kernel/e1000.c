@@ -9,7 +9,9 @@
 #include "net.h"
 
 #define TX_RING_SIZE 16
+//发送环数组，每次发送需要一个tx_desc对应一个mbuf
 static struct tx_desc tx_ring[TX_RING_SIZE] __attribute__((aligned(16)));
+//mbuf里面是数据包，放在char buf[MBUF_SIZE]，每一层会在之前基础上加上数据包头，因此需要有一个head来指向当前数据包的头部，为了继续封装加上新得头部,使用head-offset来实现，效率很高
 static struct mbuf *tx_mbufs[TX_RING_SIZE];
 
 #define RX_RING_SIZE 16
@@ -103,6 +105,37 @@ e1000_transmit(struct mbuf *m)
   // a pointer so that it can be freed after sending.
   //
   printf("hello world e1000_transmit\n");
+  acquire(&e1000_lock);
+  //队列尾保存在寄存器中
+  int curTxRingTail = regs[E1000_TDT];
+  //获取发送环当前得具体结构体
+  struct tx_desc *txDescP = &tx_ring[curTxRingTail];
+
+  //检查当前位置是否准备好了
+  if ((txDescP->status&E1000_TXD_STAT_DD)!=1)
+  {
+    release(&e1000_lock);
+    return -1; 
+  }
+
+   // 释放 desc 指向的原内存
+  if(tx_mbufs[curTxRingTail]){
+    mbuffree(tx_mbufs[curTxRingTail]);
+  };
+
+
+  //把数据放入缓冲区
+  tx_mbufs[curTxRingTail] = m;
+
+  //更新发送环结构体状态，表示当前有一个完整数据包
+  txDescP->addr = (uint64)m->head;
+  txDescP->length = m->len;
+  txDescP->cmd = E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS;
+
+  //更新尾部位置
+  regs[E1000_TDT] = (curTxRingTail+1) %TX_RING_SIZE;
+
+  release(&e1000_lock);
   return 0;
 }
 
@@ -118,6 +151,37 @@ e1000_recv(void)
   //struct mbuf *m;
   //net_rx(m);
   printf("hello world e1000_recv\n");
+
+  while (1)
+  {
+    //当前已经处理过了，这里指向下一个
+    int curRxRingHead = regs[E1000_RDT];
+    //获取接收送环，需要处理得结构体
+    struct rx_desc *rxDescP = &rx_ring[(curRxRingHead+1)%RX_RING_SIZE];
+
+    //检查环里是否还有数据包
+    if ((rxDescP->status & E1000_RXD_STAT_DD)!=1)
+    {
+      return;
+    }
+
+    //取出环中的数据包,交给上层处理
+    struct mbuf* mbuffP = rx_mbufs[curRxRingHead];
+    mbuffP->len=rxDescP->length;
+    net_rx(mbuffP);
+
+    //更新环结构体状态
+    rx_mbufs[curRxRingHead]= mbufalloc(0);
+    rxDescP->addr = (uint64) rx_mbufs[curRxRingHead]->head;
+    rxDescP->status=0;
+
+    regs[E1000_RDT]=curRxRingHead;
+
+  }
+  
+
+
+
 }
 
 void
