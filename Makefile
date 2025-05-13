@@ -313,9 +313,8 @@ qemu-gdb: $K/kernel .gdbinit fs.img
 
 ifeq ($(LAB),net)
 # try to generate a unique port for the echo server
-#  SERVERPORT = $(shell expr `id -u` % 5000 + 25099)
+SERVERPORT = $(shell expr `id -u` % 5000 + 25099)
 
-SERVERPORT = 26099
 
 server:
 	python3 server.py $(SERVERPORT)
