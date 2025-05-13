@@ -112,7 +112,8 @@ e1000_transmit(struct mbuf *m)
   struct tx_desc *txDescP = &tx_ring[curTxRingTail];
 
   //检查当前位置是否准备好了
-  if ((txDescP->status&E1000_TXD_STAT_DD)!=1)
+  //if ((txDescP->status&E1000_TXD_STAT_DD)!=1)
+  if (!(txDescP->status & E1000_TXD_STAT_DD))
   {
     release(&e1000_lock);
     return -1; 
@@ -157,31 +158,28 @@ e1000_recv(void)
     //当前已经处理过了，这里指向下一个
     int curRxRingHead = regs[E1000_RDT];
     //获取接收送环，需要处理得结构体
-    struct rx_desc *rxDescP = &rx_ring[(curRxRingHead+1)%RX_RING_SIZE];
+    int idx = (curRxRingHead+1)%RX_RING_SIZE;
+    struct rx_desc *rxDescP = &rx_ring[idx];
 
     //检查环里是否还有数据包
-    if ((rxDescP->status & E1000_RXD_STAT_DD)!=1)
+    if (!(rxDescP->status & E1000_RXD_STAT_DD))
     {
       return;
     }
 
     //取出环中的数据包,交给上层处理
-    struct mbuf* mbuffP = rx_mbufs[curRxRingHead];
+    struct mbuf* mbuffP = rx_mbufs[idx];
     mbuffP->len=rxDescP->length;
     net_rx(mbuffP);
 
     //更新环结构体状态
-    rx_mbufs[curRxRingHead]= mbufalloc(0);
-    rxDescP->addr = (uint64) rx_mbufs[curRxRingHead]->head;
+    rx_mbufs[idx]= mbufalloc(0);
+    rxDescP->addr = (uint64) rx_mbufs[idx]->head;
     rxDescP->status=0;
 
-    regs[E1000_RDT]=curRxRingHead;
+    regs[E1000_RDT]=idx;
 
   }
-  
-
-
-
 }
 
 void
