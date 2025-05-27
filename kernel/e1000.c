@@ -189,6 +189,6 @@ e1000_intr(void)
   // without this the e1000 won't raise any
   // further interrupts.
   regs[E1000_ICR] = 0xffffffff;
- printf("hello world e1000_intr\n");
+  printf("hello world e1000_intr\n");
   e1000_recv();
 }
