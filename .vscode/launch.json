@@ -1,30 +1,33 @@
 {
     "version": "0.2.0",
     "configurations": [
-        {
-            "name": "debug xv6",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/kernel/kernel",
-            "args": [],
-            "stopAtEntry": true,
-            "cwd": "${workspaceFolder}",
-            "miDebuggerServerAddress": "localhost:26000",
-            "miDebuggerPath": "/usr/local/bin/riscv64-unknown-elf-gdb",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "setupCommands": [
-                {
-                    "description": "pretty printing",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                }
-            ],
-            "logging": {
-                // "engineLogging": true,
-                // "programOutput": true,
-            }
-        }
+      {
+        "name": "debug xv6",
+        "type": "cppdbg",
+        "request": "launch",
+        "program": "${workspaceFolder}/kernel/kernel",
+        "args": [],
+        "stopAtEntry": true,
+        "cwd": "${workspaceFolder}",
+        "miDebuggerServerAddress": "127.0.0.1:26000",
+        //"miDebuggerPath": "/usr/local/bin/riscv64-unknown-elf-gdb",
+        "miDebuggerPath": "/opt/riscv-gdb-12/bin/riscv64-unknown-elf-gdb",
+        "environment": [],
+        "externalConsole": false,
+        "MIMode": "gdb",
+        "preLaunchTask": "xv6build",
+        "setupCommands": [
+          {
+            "description": "pretty printing",
+            "text": "-enable-pretty-printing",
+            "ignoreFailures": true
+          },
+           //在这里加载了寄存器信息表
+          {
+            "text": "set tdesc filename myxml.xml"
+          }
+        ]
+      }
     ]
 }
+
