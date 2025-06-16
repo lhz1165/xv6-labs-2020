@@ -241,13 +241,18 @@ bad:
 static struct inode*
 create(char *path, short type, short major, short minor)
 {
+  //dp 父 inode
+  //ip 新文件的 inode
   struct inode *ip, *dp;
+
+  //name 要创建的文件全路径
   char name[DIRSIZ];
-  //把path的文件解析名到 char name[],返回dp是文件夹indoe
+
+  //通过路径查找父目录 dp，并将最后一级的名字（例如 /a/b/c 中的 c）保存在 name 中
   if((dp = nameiparent(path, name)) == 0)
     return 0;
 
-  //获取一个父目录的inode
+  //加锁父目录 dp
   ilock(dp);
 
   //在父目录查询当前文件的 inode
@@ -260,23 +265,35 @@ create(char *path, short type, short major, short minor)
     return 0;
   }
 
+  //若之前没有找到现有文件：分配一个新的 inode
   if((ip = ialloc(dp->dev, type)) == 0)
     panic("create: ialloc");
 
+  //初始化 inode：设置设备号（对设备文件有效），链接数为 1
   ilock(ip);
   ip->major = major;
   ip->minor = minor;
   ip->nlink = 1;
+
+  // 把 inode 写入磁盘。
   iupdate(ip);
 
+  //如果是目录，需要创建特殊的目录项 "." 和 ".."
   if(type == T_DIR){  // Create . and .. entries.
+
+    //.. 指向父目录 父目录引用+1   
     dp->nlink++;  // for ".."
     iupdate(dp);
     // No ip->nlink++ for ".": avoid cyclic ref count.
+
+    //给新目录 ip 添加 "." 和 ".." 目录项
+    //为ip目录下面添加一个名字是.的新目录，指向ip->inum（自己）
+    //为ip目录下面添加一个名字是..的新目录，指向dp->inum（父目录）
     if(dirlink(ip, ".", ip->inum) < 0 || dirlink(ip, "..", dp->inum) < 0)
       panic("create dots");
   }
 
+  //把新创建的 inode 链接到父目录 dp 的目录项中
   if(dirlink(dp, name, ip->inum) < 0)
     panic("create: dirlink");
 
