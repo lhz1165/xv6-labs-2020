@@ -5,6 +5,15 @@
         "types.h": "c",
         "chrono": "c",
         "random": "c",
-        "limits": "c"
+        "limits": "c",
+        "array": "c",
+        "compare": "c",
+        "functional": "c",
+        "ratio": "c",
+        "tuple": "c",
+        "type_traits": "c",
+        "utility": "c",
+        "istream": "c",
+        "ostream": "c"
     }
 }

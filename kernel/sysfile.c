@@ -293,6 +293,12 @@ create(char *path, short type, short major, short minor)
       panic("create dots");
   }
 
+  if (type == T_SYMLINK) {
+    ip->type = T_SYMLINK;
+  }
+
+
+
   //把新创建的 inode 链接到父目录 dp 的目录项中
   if(dirlink(dp, name, ip->inum) < 0)
     panic("create: dirlink");
@@ -504,7 +510,7 @@ sys_pipe(void)
   return 0;
 }
 
-
+//symlink("/testsymlink/a", "/testsymlink/b");  创建一个软连接/testsymlink/b指向/testsymlink/a
 // 用new 指向 old的路径
 //1 为new创建一个inode文件，
 //2 inode里面保存old路径
@@ -512,7 +518,8 @@ uint64
 sys_symlink(void){
   //target path 
  char name[DIRSIZ], new[MAXPATH], old[MAXPATH];
-  struct inode *ip;
+ struct inode *ip;
+ int fd;
 
   if(argstr(0, old, MAXPATH) < 0 || argstr(1, new, MAXPATH) < 0)
     return -1;
@@ -523,9 +530,13 @@ sys_symlink(void){
     end_op();
     return -1;
   }
-  //2inode里面保存old路径
-
-
-
+  // 2. 将 old 路径字符串写入 inode 的数据区
+  if (writei(ip, 0, (uint64)old, 0, strlen(old)) != strlen(old)) {
+    iunlockput(ip);
+    end_op();
+    return -1;
+  }
+  iunlockput(ip);
+  end_op();
   return -1;
 }
